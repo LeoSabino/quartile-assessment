@@ -17,4 +17,17 @@ public class StoreTests
         Assert.Equal("US", result.Value.CountryCode);
         Assert.Equal("USD", result.Value.CurrencyCode);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_WithEmptyName_ReturnsValidationError(string? name)
+    {
+        var result = Store.Create(Guid.NewGuid(), name!, "US", "USD");
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorType.Validation, result.Error.Type);
+        Assert.Equal("Store.NameRequired", result.Error.Code);
+    }
 }
