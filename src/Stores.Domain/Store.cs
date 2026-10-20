@@ -4,6 +4,7 @@ public class Store
 {
     public const int NameMaxLength = 200;
 
+    public Guid Id { get; private set; }
     public Guid CompanyId { get; private set; }
     public string Name { get; private set; }
     public string CountryCode { get; private set; }

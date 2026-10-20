@@ -16,4 +16,7 @@ public static class StoreErrors
 
     public static readonly Error InvalidCurrencyCode =
         new(ErrorType.Validation, "Store.InvalidCurrencyCode", "Invalid currency code. Use a three-letter code, like USD or BRL.");
+
+    public static readonly Error NameAlreadyInUse =
+        new(ErrorType.Conflict, "Store.NameAlreadyInUse", "This company already has a store with this name.");
 }
