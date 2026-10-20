@@ -1,6 +1,14 @@
+using Stores.Application;
+using Stores.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+var connectionString = builder.Configuration.GetConnectionString("Stores")
+    ?? throw new InvalidOperationException("Connection string 'Stores' is not configured.");
+
+builder.Services.AddInfrastructure(connectionString);
+builder.Services.AddScoped<CompanyService>();
+builder.Services.AddScoped<StoreService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
