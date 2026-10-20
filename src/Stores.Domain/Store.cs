@@ -25,11 +25,11 @@ public class Store
         if (companyId == Guid.Empty)
             return Result<Store>.Failure(StoreErrors.CompanyIdRequired);
 
-        name = name?.Trim() ?? string.Empty;
+        name = NormalizeName(name);
         countryCode = NormalizeCode(countryCode);
         currencyCode = NormalizeCode(currencyCode);
 
-        var error = Validate(name, countryCode, currencyCode);
+        var error = FindError(name, countryCode, currencyCode);
         if (error is not null)
             return Result<Store>.Failure(error);
 
@@ -39,11 +39,11 @@ public class Store
 
     public Result Update(string name, string countryCode, string currencyCode)
     {
-        name = name?.Trim() ?? string.Empty;
+        name = NormalizeName(name);
         countryCode = NormalizeCode(countryCode);
         currencyCode = NormalizeCode(currencyCode);
 
-        var error = Validate(name, countryCode, currencyCode);
+        var error = FindError(name, countryCode, currencyCode);
         if (error is not null)
             return Result.Failure(error);
 
@@ -58,7 +58,15 @@ public class Store
         IsActive = false;
     }
 
-    private static Error? Validate(string name, string countryCode, string currencyCode)
+    public static Result Validate(string name, string countryCode, string currencyCode)
+    {
+        var error = FindError(NormalizeName(name), NormalizeCode(countryCode), NormalizeCode(currencyCode));
+        return error is null ? Result.Success() : Result.Failure(error);
+    }
+
+    public static string NormalizeName(string name) => name?.Trim() ?? string.Empty;
+
+    private static Error? FindError(string name, string countryCode, string currencyCode)
     {
         if (name.Length == 0)
             return StoreErrors.NameRequired;

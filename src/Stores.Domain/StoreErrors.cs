@@ -2,6 +2,9 @@ namespace Stores.Domain;
 
 public static class StoreErrors
 {
+    public static readonly Error NotFound =
+        new(ErrorType.NotFound, "Store.NotFound", "Store not found.");
+
     public static readonly Error CompanyIdRequired =
         new(ErrorType.Validation, "Store.CompanyIdRequired", "Company id is required.");
 

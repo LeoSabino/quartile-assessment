@@ -71,6 +71,18 @@ public class UpdateStoreTests
     }
 
     [Fact]
+    public async Task UpdateAsync_WithInvalidData_DoesNotCheckTheName()
+    {
+        var companyId = _companies.AddActiveCompany();
+        var store = (await _service.CreateAsync(companyId, "Downtown", "US", "USD")).Value;
+        var checksBefore = _stores.NameChecks;
+
+        await _service.UpdateAsync(companyId, store.Id, "", "US", "USD");
+
+        Assert.Equal(checksBefore, _stores.NameChecks);
+    }
+
+    [Fact]
     public async Task UpdateAsync_WhenStoreDoesNotExist_ReturnsNotFound()
     {
         var companyId = _companies.AddActiveCompany();
