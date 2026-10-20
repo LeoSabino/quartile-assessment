@@ -1,23 +1,34 @@
 namespace Stores.Domain;
 
-public sealed class Result<T>
+public class Result
 {
-    private readonly T? _value;
     private readonly Error? _error;
 
-    private Result(T? value, Error? error)
+    protected Result(Error? error)
     {
-        _value = value;
         _error = error;
     }
 
     public bool IsSuccess => _error is null;
+    public bool IsFailure => !IsSuccess;
 
-    public T Value => IsSuccess ? _value! : throw new InvalidOperationException($"Result failed: {_error!.Code}");
+    public Error Error => _error ?? throw new InvalidOperationException("A successful result has no error.");
 
-    public Error Error => _error ?? throw new InvalidOperationException("Result succeeded, there is no error.");
+    public static Result Success() => new(null);
+    public static Result Failure(Error error) => new(error);
+}
+
+public class Result<T> : Result
+{
+    private readonly T? _value;
+
+    private Result(T? value, Error? error) : base(error)
+    {
+        _value = value;
+    }
+
+    public T Value => IsSuccess ? _value! : throw new InvalidOperationException("A failed result has no value.");
 
     public static Result<T> Success(T value) => new(value, null);
-
-    public static Result<T> Failure(Error error) => new(default, error);
+    public static new Result<T> Failure(Error error) => new(default, error);
 }
