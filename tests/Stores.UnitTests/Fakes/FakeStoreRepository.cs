@@ -20,6 +20,9 @@ public class FakeStoreRepository : IStoreRepository
         return Task.FromResult(stores);
     }
 
+    public Task<bool> HasActiveStoresAsync(Guid companyId, CancellationToken cancellationToken) =>
+        Task.FromResult(Stores.Any(s => s.IsActive && s.CompanyId == companyId));
+
     public int NameChecks { get; private set; }
 
     public Task<bool> NameExistsAsync(Guid companyId, string name, CancellationToken cancellationToken)
