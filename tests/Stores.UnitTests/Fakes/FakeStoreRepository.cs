@@ -6,6 +6,19 @@ namespace Stores.UnitTests.Fakes;
 public class FakeStoreRepository : IStoreRepository
 {
     public List<Store> Stores { get; } = [];
+    public List<Store> UpdatedStores { get; } = [];
+
+    public Task<Store?> GetByIdAsync(Guid companyId, Guid storeId, CancellationToken cancellationToken)
+    {
+        var store = Stores.SingleOrDefault(s => s.IsActive && s.CompanyId == companyId && s.Id == storeId);
+        return Task.FromResult(store);
+    }
+
+    public Task<IReadOnlyList<Store>> ListByCompanyAsync(Guid companyId, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Store> stores = Stores.Where(s => s.IsActive && s.CompanyId == companyId).ToList();
+        return Task.FromResult(stores);
+    }
 
     public Task<bool> NameExistsAsync(Guid companyId, string name, CancellationToken cancellationToken)
     {
@@ -19,7 +32,14 @@ public class FakeStoreRepository : IStoreRepository
 
     public Task AddAsync(Store store, CancellationToken cancellationToken)
     {
+        typeof(Store).GetProperty(nameof(Store.Id))!.SetValue(store, Guid.NewGuid());
         Stores.Add(store);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(Store store, CancellationToken cancellationToken)
+    {
+        UpdatedStores.Add(store);
         return Task.CompletedTask;
     }
 }
