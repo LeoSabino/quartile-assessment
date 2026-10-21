@@ -8,6 +8,8 @@ internal class StoreConfiguration : IEntityTypeConfiguration<Store>
 {
     public const string UniqueNameIndex = "UX_Stores_CompanyId_Name";
 
+    public const string ProductsCurrencyForeignKey = "FK_Products_Stores_StoreId_CurrencyCode";
+
     public void Configure(EntityTypeBuilder<Store> builder)
     {
         builder.ToTable("Stores", t =>

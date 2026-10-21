@@ -44,9 +44,14 @@ public class FakeStoreRepository : IStoreRepository
         return Task.CompletedTask;
     }
 
-    public Task UpdateAsync(Store store, CancellationToken cancellationToken)
+    public Error? UpdateError { get; set; }
+
+    public Task<Result> UpdateAsync(Store store, CancellationToken cancellationToken)
     {
+        if (UpdateError is not null)
+            return Task.FromResult(Result.Failure(UpdateError));
+
         UpdatedStores.Add(store);
-        return Task.CompletedTask;
+        return Task.FromResult(Result.Success());
     }
 }

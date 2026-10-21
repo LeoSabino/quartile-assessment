@@ -1,11 +1,15 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Stores.Application.Ports;
 using Stores.Domain;
+using Stores.Infrastructure.Persistence.Configurations;
 
 namespace Stores.Infrastructure.Persistence.Repositories;
 
 internal class StoreRepository : IStoreRepository
 {
+    private const int ConstraintViolation = 547;
+
     private readonly StoresDbContext _db;
 
     public StoreRepository(StoresDbContext db)
@@ -37,6 +41,21 @@ internal class StoreRepository : IStoreRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public Task UpdateAsync(Store store, CancellationToken cancellationToken) =>
-        _db.SaveChangesAsync(cancellationToken);
+    public async Task<Result> UpdateAsync(Store store, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+        catch (DbUpdateException ex) when (IsProductsCurrencyViolation(ex))
+        {
+            return Result.Failure(StoreErrors.CurrencyLockedByProducts);
+        }
+    }
+
+    // 547 is also raised by CHECK constraints, so the FK name must match too.
+    private static bool IsProductsCurrencyViolation(DbUpdateException ex) =>
+        ex.InnerException is SqlException { Number: ConstraintViolation } sqlException &&
+        sqlException.Message.Contains(StoreConfiguration.ProductsCurrencyForeignKey, StringComparison.Ordinal);
 }

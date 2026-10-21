@@ -92,4 +92,18 @@ public class UpdateStoreTests
         Assert.True(result.IsFailure);
         Assert.Equal("Store.NotFound", result.Error.Code);
     }
+
+    [Fact]
+    public async Task UpdateAsync_WhenRepositoryRejectsCurrencyChange_ReturnsConflict()
+    {
+        var companyId = _companies.AddActiveCompany();
+        var store = (await _service.CreateAsync(companyId, "Downtown", "US", "USD")).Value;
+        _stores.UpdateError = StoreErrors.CurrencyLockedByProducts;
+
+        var result = await _service.UpdateAsync(companyId, store.Id, "Downtown", "US", "EUR");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("Store.CurrencyLockedByProducts", result.Error.Code);
+    }
 }

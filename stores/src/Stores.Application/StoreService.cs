@@ -82,7 +82,10 @@ public class StoreService
             return Result<Store>.Failure(StoreErrors.NameAlreadyInUse);
 
         store.Update(name, countryCode, currencyCode);
-        await _stores.UpdateAsync(store, cancellationToken);
+        var saved = await _stores.UpdateAsync(store, cancellationToken);
+        if (saved.IsFailure)
+            return Result<Store>.Failure(saved.Error);
+
         return found;
     }
 
@@ -93,7 +96,6 @@ public class StoreService
             return Result.Failure(found.Error);
 
         found.Value.Deactivate();
-        await _stores.UpdateAsync(found.Value, cancellationToken);
-        return Result.Success();
+        return await _stores.UpdateAsync(found.Value, cancellationToken);
     }
 }

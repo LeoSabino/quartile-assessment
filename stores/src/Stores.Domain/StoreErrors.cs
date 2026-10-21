@@ -22,4 +22,7 @@ public static class StoreErrors
 
     public static readonly Error NameAlreadyInUse =
         new(ErrorType.Conflict, "Store.NameAlreadyInUse", "This company already has a store with this name.");
+
+    public static readonly Error CurrencyLockedByProducts =
+        new(ErrorType.Conflict, "Store.CurrencyLockedByProducts", "Store currency can't be changed while it has products.");
 }
