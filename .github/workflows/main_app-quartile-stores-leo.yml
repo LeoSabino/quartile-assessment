@@ -26,8 +26,17 @@ jobs:
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
+      - name: Unit tests
+        run: dotnet test tests/Stores.UnitTests -c Release --no-build
+
+      - name: Start LocalDB
+        run: sqllocaldb start MSSQLLocalDB
+
+      - name: Integration tests
+        run: dotnet test tests/Stores.IntegrationTests -c Release --no-build
+
       - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish src/Stores.Api/Stores.Api.csproj -c Release --no-build -o "${{env.DOTNET_ROOT}}/myapp"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
