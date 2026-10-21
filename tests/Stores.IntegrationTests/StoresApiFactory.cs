@@ -8,12 +8,24 @@ namespace Stores.IntegrationTests;
 
 public class StoresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public const string ApiKeyHeader = "X-Api-Key";
+    public const string TestsApiKey = "tests-key";
+    public const string QuartileApiKey = "quartile-key";
+
     private const string ConnectionString =
         "Server=(localdb)\\MSSQLLocalDB;Database=Quartile_Tests;Trusted_Connection=True;TrustServerCertificate=True";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Stores", ConnectionString);
+        builder.UseSetting("ApiKeys:tests", TestsApiKey);
+        builder.UseSetting("ApiKeys:quartile", QuartileApiKey);
+    }
+
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+        client.DefaultRequestHeaders.Add(ApiKeyHeader, TestsApiKey);
     }
 
     public async Task InitializeAsync()
