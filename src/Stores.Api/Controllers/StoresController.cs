@@ -16,6 +16,9 @@ public class StoresController : ApiControllerBase
     }
 
     [HttpGet]
+    [EndpointSummary("List the stores of a company")]
+    [ProducesResponseType<IEnumerable<StoreResponse>>(StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> List(Guid companyId, CancellationToken cancellationToken)
     {
         var result = await _service.ListAsync(companyId, cancellationToken);
@@ -26,6 +29,9 @@ public class StoresController : ApiControllerBase
     }
 
     [HttpGet("{storeId:guid}")]
+    [EndpointSummary("Get a store")]
+    [ProducesResponseType<StoreResponse>(StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> GetById(Guid companyId, Guid storeId, CancellationToken cancellationToken)
     {
         var result = await _service.GetAsync(companyId, storeId, cancellationToken);
@@ -36,6 +42,12 @@ public class StoresController : ApiControllerBase
     }
 
     [HttpPost]
+    [EndpointSummary("Create a store")]
+    [EndpointDescription("Country is an ISO 3166-1 alpha-2 code (US, BR) and currency an ISO 4217 code (USD, BRL). The name must be unique within the company.")]
+    [ProducesResponseType<StoreResponse>(StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<IActionResult> Create(Guid companyId, CreateStoreRequest request, CancellationToken cancellationToken)
     {
         var result = await _service.CreateAsync(
@@ -48,6 +60,11 @@ public class StoresController : ApiControllerBase
     }
 
     [HttpPut("{storeId:guid}")]
+    [EndpointSummary("Update a store")]
+    [ProducesResponseType<StoreResponse>(StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<IActionResult> Update(
         Guid companyId,
         Guid storeId,
@@ -63,6 +80,10 @@ public class StoresController : ApiControllerBase
     }
 
     [HttpDelete("{storeId:guid}")]
+    [EndpointSummary("Delete a store")]
+    [EndpointDescription("Soft delete. The name can be used again by a new store.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> Delete(Guid companyId, Guid storeId, CancellationToken cancellationToken)
     {
         var result = await _service.DeleteAsync(companyId, storeId, cancellationToken);

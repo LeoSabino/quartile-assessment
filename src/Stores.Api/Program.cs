@@ -25,14 +25,13 @@ builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer<ApiKeySecurityTransformer>());
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi().AllowAnonymous();
-}
+app.MapOpenApi().AllowAnonymous();
+app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Stores API v1"));
+app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous().ExcludeFromDescription();
 
 app.UseHttpsRedirection();
 

@@ -15,6 +15,8 @@ public class CompaniesController : ApiControllerBase
     }
 
     [HttpGet]
+    [EndpointSummary("List active companies")]
+    [ProducesResponseType<IEnumerable<CompanyResponse>>(StatusCodes.Status200OK, "application/json")]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var companies = await _service.ListAsync(cancellationToken);
@@ -22,6 +24,9 @@ public class CompaniesController : ApiControllerBase
     }
 
     [HttpGet("{companyId:guid}")]
+    [EndpointSummary("Get a company")]
+    [ProducesResponseType<CompanyResponse>(StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> GetById(Guid companyId, CancellationToken cancellationToken)
     {
         var result = await _service.GetAsync(companyId, cancellationToken);
@@ -33,6 +38,11 @@ public class CompaniesController : ApiControllerBase
     }
 
     [HttpPost]
+    [EndpointSummary("Create a company")]
+    [EndpointDescription("The name must be unique among active companies.")]
+    [ProducesResponseType<CompanyResponse>(StatusCodes.Status201Created, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<IActionResult> Create(CreateCompanyRequest request, CancellationToken cancellationToken)
     {
         var result = await _service.CreateAsync(request.Name, cancellationToken);
@@ -45,6 +55,11 @@ public class CompaniesController : ApiControllerBase
     }
 
     [HttpDelete("{companyId:guid}")]
+    [EndpointSummary("Delete a company")]
+    [EndpointDescription("Soft delete. Returns 409 while the company still has active stores.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<IActionResult> Delete(Guid companyId, CancellationToken cancellationToken)
     {
         var result = await _service.DeleteAsync(companyId, cancellationToken);
