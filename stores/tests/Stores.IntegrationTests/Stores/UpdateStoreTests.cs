@@ -1,16 +1,21 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Stores.Infrastructure.Persistence;
 using Stores.IntegrationTests.Companies;
+using Stores.IntegrationTests.Contracts;
 
 namespace Stores.IntegrationTests.Stores;
 
 [Collection("Api")]
 public class UpdateStoreTests
 {
+    private readonly StoresApiFactory _factory;
     private readonly HttpClient _client;
 
     public UpdateStoreTests(StoresApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -69,5 +74,31 @@ public class UpdateStoreTests
             new { name = "Downtown", countryCode = "US", currencyCode = "USD" });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_ChangingCurrencyOfStoreWithProducts_ReturnsConflict_ProductsContract()
+    {
+        var company = await _client.CreateCompanyAsync();
+        var store = await _client.CreateStoreAsync(company.Id, currencyCode: "USD");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StoresDbContext>();
+            await ProductsTableContract.EnsureCreatedAsync(db);
+            await ProductsTableContract.AddProductAsync(db, store.Id, "USD");
+        }
+
+        var response = await _client.PutAsJsonAsync(
+            StoreApi.StoreUrl(company.Id, store.Id),
+            new { name = store.Name, countryCode = "US", currencyCode = "EUR" });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Equal("Store.CurrencyLockedByProducts", error?.Code);
+
+        var current = await _client.GetFromJsonAsync<StoreResponse>(StoreApi.StoreUrl(company.Id, store.Id));
+        Assert.Equal("USD", current?.CurrencyCode);
     }
 }

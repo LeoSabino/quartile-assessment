@@ -9,5 +9,5 @@ public interface IStoreRepository
     Task<bool> HasActiveStoresAsync(Guid companyId, CancellationToken cancellationToken);
     Task<bool> NameExistsAsync(Guid companyId, string name, CancellationToken cancellationToken);
     Task AddAsync(Store store, CancellationToken cancellationToken);
-    Task UpdateAsync(Store store, CancellationToken cancellationToken);
+    Task<Result> UpdateAsync(Store store, CancellationToken cancellationToken);
 }
