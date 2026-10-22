@@ -158,6 +158,23 @@ public class ProductTests
     }
 
     [Fact]
+    public void Create_WithPriceAboveDatabaseLimit_ReturnsValidationError()
+    {
+        var result = Product.Create(StoreId, "ABC-1", "Coffee", null, Product.MaxPrice + 0.01m, 0);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Product.InvalidPrice", result.Error.Code);
+    }
+
+    [Fact]
+    public void Create_WithMaxPrice_ReturnsSuccess()
+    {
+        var result = Product.Create(StoreId, "ABC-1", "Coffee", null, 9_999_999_999_999_999.99m, 0);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public void Create_WithZeroPriceAndQuantity_ReturnsSuccess()
     {
         var result = Product.Create(StoreId, "ABC-1", "Coffee", null, 0m, 0);
@@ -244,6 +261,18 @@ public class ProductTests
         Assert.Equal("Coffee", product.Name);
         Assert.Equal(10.50m, product.Price);
         Assert.Equal(3, product.Quantity);
+    }
+
+    [Fact]
+    public void Update_WithPriceAboveDatabaseLimit_ReturnsValidationError()
+    {
+        var product = CreateProduct();
+
+        var result = product.Update("ABC-1", "Espresso", null, Product.MaxPrice + 0.01m, 7);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Product.InvalidPrice", result.Error.Code);
+        Assert.Equal(10.50m, product.Price);
     }
 
     [Fact]

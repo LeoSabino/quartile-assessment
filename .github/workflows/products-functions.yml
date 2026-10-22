@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: read
     defaults:
@@ -28,6 +28,12 @@ jobs:
 
       - name: Unit tests
         run: dotnet test tests/Products.UnitTests -c Release --no-build
+
+      - name: Start LocalDB
+        run: sqllocaldb start MSSQLLocalDB
+
+      - name: Integration tests
+        run: dotnet test tests/Products.IntegrationTests -c Release --no-build
 
       - name: Publish
         run: dotnet publish src/Products.Functions/Products.Functions.csproj -c Release -o ${{ runner.temp }}/products-functions

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Stores.Api.Authentication;
+using Stores.Api.Controllers;
 using Stores.Application;
 using Stores.Infrastructure;
 using Stores.Infrastructure.Persistence;
@@ -25,12 +27,21 @@ builder.Services
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
-builder.Services.AddHealthChecks().AddDbContextCheck<StoresDbContext>();
+builder.Services.AddHealthChecks().AddDbContextCheck<StoresDbContext>(tags: ["db"]);
 
-builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services
+    .AddControllers(options =>
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)
+    .ConfigureApiBehaviorOptions(options =>
+        options.InvalidModelStateResponseFactory = context =>
+            ErrorResults.From(ErrorResults.InvalidBody, context.HttpContext));
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer<ApiKeySecurityTransformer>());
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 app.MapOpenApi().AllowAnonymous();
 app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Stores API v1"));
@@ -42,6 +53,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health").AllowAnonymous();
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("db") });
 
 app.Run();
