@@ -18,7 +18,7 @@ jobs:
 
       - name: Swap staging -> production
         run: >
-          az functionapp deployment slot swap
+          az webapp deployment slot swap
           --resource-group quartile-assessment
           --name func-quartile-products-leo
           --slot staging
