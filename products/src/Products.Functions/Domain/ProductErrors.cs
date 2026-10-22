@@ -11,6 +11,9 @@ public static class ProductErrors
     public static readonly Error ProductCodeAlreadyInUse =
         new(ErrorType.Conflict, "Product.ProductCodeAlreadyInUse", "This store already has a product with this code.");
 
+    public static readonly Error RejectedByDatabase =
+        new(ErrorType.Validation, "Product.RejectedByDatabase", "The product data was rejected by a database rule.");
+
     public static readonly Error StoreIdRequired =
         new(ErrorType.Validation, "Product.StoreIdRequired", "Store id is required.");
 
