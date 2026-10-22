@@ -197,7 +197,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Company.NameAlreadyInUse\", () => pm.expect(pm.response.json().code).to.eql(\"Company.NameAlreadyInUse\"));"
                 ]
               }
             }
@@ -326,7 +327,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Store.InvalidCurrencyCode\", () => pm.expect(pm.response.json().code).to.eql(\"Store.InvalidCurrencyCode\"));"
                 ]
               }
             }
@@ -374,7 +376,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Store.NameAlreadyInUse\", () => pm.expect(pm.response.json().code).to.eql(\"Store.NameAlreadyInUse\"));"
                 ]
               }
             }
@@ -422,7 +425,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Company.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Company.NotFound\"));"
                 ]
               }
             }
@@ -489,6 +493,82 @@
                 "exec": [
                   "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"same id\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"storeId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create another company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Other Retail {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"otherCompanyId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get store through another company -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{otherCompanyId}}/stores/{{storeId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{otherCompanyId}}",
+                "stores",
+                "{{storeId}}"
+              ]
+            },
+            "description": "Multi-company isolation: a store is only reachable through its own company. 404, not 403, so the API doesn't reveal that the id exists."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"code is Store.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Store.NotFound\"));"
                 ]
               }
             }
@@ -700,7 +780,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Product.ProductCodeAlreadyInUse\", () => pm.expect(pm.response.json().code).to.eql(\"Product.ProductCodeAlreadyInUse\"));"
                 ]
               }
             }
@@ -747,7 +828,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Product.StoreNotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Product.StoreNotFound\"));"
                 ]
               }
             }
@@ -793,7 +875,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Product.InvalidPrice\", () => pm.expect(pm.response.json().code).to.eql(\"Product.InvalidPrice\"));"
                 ]
               }
             }
@@ -828,9 +911,12 @@
                   "const body = pm.response.json();",
                   "pm.test(\"store currency is on the root\", () => pm.expect(body.currencyCode).to.eql(pm.environment.get(\"storeCurrency\")));",
                   "pm.test(\"contains the product created above\", () => {",
-                  "    // SQL Server returns GUIDs in upper case",
-                  "    const ids = body.products.map(p => p.id.toLowerCase());",
-                  "    pm.expect(ids).to.include(pm.collectionVariables.get(\"productId\").toLowerCase());",
+                  "    const ids = body.products.map(p => p.id);",
+                  "    pm.expect(ids).to.include(pm.collectionVariables.get(\"productId\"));",
+                  "});",
+                  "pm.test(\"ids are lowercase, like the other endpoints\", () => {",
+                  "    pm.expect(body.storeId).to.eql(body.storeId.toLowerCase());",
+                  "    body.products.forEach(p => pm.expect(p.id).to.eql(p.id.toLowerCase()));",
                   "});"
                 ]
               }
@@ -865,7 +951,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Product.StoreNotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Product.StoreNotFound\"));"
                 ]
               }
             }
@@ -995,7 +1082,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Product.ProductCodeCannotChange\", () => pm.expect(pm.response.json().code).to.eql(\"Product.ProductCodeCannotChange\"));"
                 ]
               }
             }
@@ -1071,7 +1159,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Store.CurrencyLockedByProducts\", () => pm.expect(pm.response.json().code).to.eql(\"Store.CurrencyLockedByProducts\"));"
                 ]
               }
             }
@@ -1179,7 +1268,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Product.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Product.NotFound\"));"
                 ]
               }
             }
@@ -1237,7 +1327,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Company.HasActiveStores\", () => pm.expect(pm.response.json().code).to.eql(\"Company.HasActiveStores\"));"
                 ]
               }
             }
@@ -1343,7 +1434,8 @@
                   "pm.test(\"returns a problem details body\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    pm.expect(pm.response.json()).to.have.property(\"title\");",
-                  "});"
+                  "});",
+                  "pm.test(\"code is Store.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Store.NotFound\"));"
                 ]
               }
             }
@@ -1397,6 +1489,55 @@
               }
             }
           ]
+        },
+        {
+          "name": "Delete the other company",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{otherCompanyId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{otherCompanyId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-Api-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
@@ -1408,6 +1549,10 @@
     },
     {
       "key": "companyId",
+      "value": ""
+    },
+    {
+      "key": "otherCompanyId",
       "value": ""
     },
     {
