@@ -2,6 +2,15 @@ namespace Products.Functions.Domain;
 
 public static class ProductErrors
 {
+    public static readonly Error NotFound =
+        new(ErrorType.NotFound, "Product.NotFound", "Product not found.");
+
+    public static readonly Error StoreNotFound =
+        new(ErrorType.NotFound, "Product.StoreNotFound", "Store not found.");
+
+    public static readonly Error ProductCodeAlreadyInUse =
+        new(ErrorType.Conflict, "Product.ProductCodeAlreadyInUse", "This store already has a product with this code.");
+
     public static readonly Error StoreIdRequired =
         new(ErrorType.Validation, "Product.StoreIdRequired", "Store id is required.");
 
