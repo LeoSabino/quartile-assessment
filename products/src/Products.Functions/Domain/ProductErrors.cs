@@ -35,6 +35,9 @@ public static class ProductErrors
     public static readonly Error DescriptionTooLong =
         new(ErrorType.Validation, "Product.DescriptionTooLong", $"Description must have at most {Product.DescriptionMaxLength} characters.");
 
+    public static readonly Error PriceRequired =
+        new(ErrorType.Validation, "Product.PriceRequired", "Price is required.");
+
     public static readonly Error InvalidPrice =
         new(ErrorType.Validation, "Product.InvalidPrice", $"Price must be zero or positive, with at most {Product.PriceDecimalPlaces} decimal places.");
 

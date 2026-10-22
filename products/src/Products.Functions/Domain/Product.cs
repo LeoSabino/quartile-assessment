@@ -49,7 +49,7 @@ public class Product
         if (error is not null)
             return Result<Product>.Failure(error);
 
-        var product = new Product(storeId, productCode, name, description, price, quantity);
+        var product = new Product(storeId, productCode, name, description, WithPriceScale(price), quantity);
         return Result<Product>.Success(product);
     }
 
@@ -67,7 +67,7 @@ public class Product
 
         Name = name;
         Description = description;
-        Price = price;
+        Price = WithPriceScale(price);
         Quantity = quantity;
         return Result.Success();
     }
@@ -107,6 +107,9 @@ public class Product
 
         return null;
     }
+
+    // Same scale as DECIMAL(18,2): 12.9 becomes 12.90. Safe because prices with more decimals are rejected.
+    private static decimal WithPriceScale(decimal price) => price + 0.00m;
 
     private static string NormalizeText(string text) => text?.Trim() ?? string.Empty;
 

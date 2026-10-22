@@ -11,11 +11,11 @@ BEGIN
     SELECT @Json =
     (
         SELECT
-            s.Id           AS storeId,
+            LOWER(CONVERT(CHAR(36), s.Id)) AS storeId,
             s.CurrencyCode AS currencyCode,
             JSON_QUERY(COALESCE((
                 SELECT
-                    p.Id          AS id,
+                    LOWER(CONVERT(CHAR(36), p.Id)) AS id,
                     p.ProductCode AS productCode,
                     p.Name        AS name,
                     p.Description AS description,

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Products.Functions.Domain;
 
 namespace Products.UnitTests.Domain;
@@ -165,6 +166,14 @@ public class ProductTests
     }
 
     [Fact]
+    public void Create_StoresPriceWithTwoDecimalPlaces()
+    {
+        var result = Product.Create(StoreId, "ABC-1", "Coffee", null, 12.9m, 0);
+
+        Assert.Equal("12.90", result.Value.Price.ToString(CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public void Create_WithNegativeQuantity_ReturnsValidationError()
     {
         var result = Product.Create(StoreId, "ABC-1", "Coffee", null, 10m, -1);
@@ -186,6 +195,16 @@ public class ProductTests
         Assert.Equal("Dark roast", product.Description);
         Assert.Equal(12.90m, product.Price);
         Assert.Equal(7, product.Quantity);
+    }
+
+    [Fact]
+    public void Update_StoresPriceWithTwoDecimalPlaces()
+    {
+        var product = CreateProduct();
+
+        product.Update("ABC-1", "Espresso", null, 12m, 7);
+
+        Assert.Equal("12.00", product.Price.ToString(CultureInfo.InvariantCulture));
     }
 
     [Fact]
