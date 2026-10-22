@@ -1,0 +1,1422 @@
+{
+  "info": {
+    "_postman_id": "643d5db6-a5b0-4672-870b-2adfbd5db4c9",
+    "name": "Quartile Assessment",
+    "description": "Stores API (Q1, App Service) and Products Functions (Q2, Azure Functions).\n\n**How to run**\n- `production` environment: run the whole collection in order. It creates a company, a store and a product, checks the error cases and cleans everything up at the end.\n- `staging` environment: only the Products Functions staging slot exists, so run just the **2. Products Functions** and **4. Cleanup - products** folders. `storeId` points to the seeded staging store.\n\nKeys are not committed. Fill `apiKey` (Stores API, `X-Api-Key` header) and `functionsKey` (Functions, `x-functions-key` header) in the environment before running.\n\nNote: the first request after a while can take a few seconds (serverless database + Functions cold start).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Stores API",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          {
+            "key": "key",
+            "value": "X-Api-Key",
+            "type": "string"
+          },
+          {
+            "key": "value",
+            "value": "{{apiKey}}",
+            "type": "string"
+          },
+          {
+            "key": "in",
+            "value": "header",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/health",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Anonymous. Also checks the database connection (it can be slow on the first call because the serverless DB may be paused)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"is healthy\", () => pm.expect(pm.response.text()).to.eql(\"Healthy\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Without API key -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Retail {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// unique suffix so the collection can be run more than once",
+                  "pm.collectionVariables.set(\"runId\", Date.now().toString().slice(-6));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const company = pm.response.json();",
+                  "pm.test(\"has an id and the name sent\", () => {",
+                  "    pm.expect(company.id).to.be.a(\"string\");",
+                  "    pm.expect(company.name).to.eql(`Acme Retail ${pm.collectionVariables.get(\"runId\")}`);",
+                  "});",
+                  "pm.test(\"Location header points to the new company\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Location\")).to.include(company.id);",
+                  "});",
+                  "pm.collectionVariables.set(\"companyId\", company.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create company with same name -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Retail {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"same id\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"companyId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create store",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Porto Alegre\",\n  \"countryCode\": \"BR\",\n  \"currencyCode\": \"BRL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const store = pm.response.json();",
+                  "pm.test(\"store belongs to the company\", () => {",
+                  "    pm.expect(store.companyId).to.eql(pm.collectionVariables.get(\"companyId\"));",
+                  "    pm.expect(store.countryCode).to.eql(\"BR\");",
+                  "    pm.expect(store.currencyCode).to.eql(\"BRL\");",
+                  "});",
+                  "pm.collectionVariables.set(\"storeId\", store.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create store with invalid currency -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid currency\",\n  \"countryCode\": \"BR\",\n  \"currencyCode\": \"REAIS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create store with duplicated name -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Porto Alegre\",\n  \"countryCode\": \"BR\",\n  \"currencyCode\": \"BRL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create store in unknown company -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/00000000-0000-0000-0000-000000000000/stores",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "00000000-0000-0000-0000-000000000000",
+                "stores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nowhere\",\n  \"countryCode\": \"US\",\n  \"currencyCode\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List stores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"contains the store created above\", () => {",
+                  "    const ids = pm.response.json().map(s => s.id);",
+                  "    pm.expect(ids).to.include(pm.collectionVariables.get(\"storeId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get store",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores/{{storeId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores",
+                "{{storeId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"same id\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"storeId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update store",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores/{{storeId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores",
+                "{{storeId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Porto Alegre - Centro\",\n  \"countryCode\": \"BR\",\n  \"currencyCode\": \"BRL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "PUT replaces the whole store, so all fields are sent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"name was updated\", () => pm.expect(pm.response.json().name).to.eql(\"Porto Alegre - Centro\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Q1 - companies and stores. Auth: X-Api-Key header."
+    },
+    {
+      "name": "2. Products Functions",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          {
+            "key": "key",
+            "value": "x-functions-key",
+            "type": "string"
+          },
+          {
+            "key": "value",
+            "value": "{{functionsKey}}",
+            "type": "string"
+          },
+          {
+            "key": "in",
+            "value": "header",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Without function key -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productsUrl}}/api/stores/{{storeId}}/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores",
+                "{{storeId}}",
+                "products"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productsUrl}}/api/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": \"{{storeId}}\",\n  \"productCode\": \"SKU-{{runId}}\",\n  \"name\": \"Chimarrao cuia\",\n  \"description\": \"Hand made, 300ml\",\n  \"price\": 49.9,\n  \"quantity\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The currency is not sent: the stored procedure copies it from the store."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"runId\")) {",
+                  "    pm.collectionVariables.set(\"runId\", Date.now().toString().slice(-6));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const product = pm.response.json();",
+                  "pm.test(\"currency comes from the store\", () => pm.expect(product.currencyCode).to.eql(pm.environment.get(\"storeCurrency\")));",
+                  "pm.test(\"Location header points to the new product\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Location\")).to.include(product.id);",
+                  "});",
+                  "pm.collectionVariables.set(\"productId\", product.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product with same code -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productsUrl}}/api/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": \"{{storeId}}\",\n  \"productCode\": \"SKU-{{runId}}\",\n  \"name\": \"Duplicated\",\n  \"price\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product in unknown store -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productsUrl}}/api/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": \"5f1c2a9e-7b3d-4e8a-9c61-2d4b8e0f7a13\",\n  \"productCode\": \"SKU-X\",\n  \"name\": \"Nowhere\",\n  \"price\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Any valid id that doesn't exist. An empty GUID is rejected earlier by validation (400)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product with negative price -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productsUrl}}/api/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": \"{{storeId}}\",\n  \"productCode\": \"SKU-NEG\",\n  \"name\": \"Negative\",\n  \"price\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List store products (scalar function)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productsUrl}}/api/stores/{{storeId}}/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores",
+                "{{storeId}}",
+                "products"
+              ]
+            },
+            "description": "Returns the JSON built by dbo.GetProductsJson as is."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"store currency is on the root\", () => pm.expect(body.currencyCode).to.eql(pm.environment.get(\"storeCurrency\")));",
+                  "pm.test(\"contains the product created above\", () => {",
+                  "    // SQL Server returns GUIDs in upper case",
+                  "    const ids = body.products.map(p => p.id.toLowerCase());",
+                  "    pm.expect(ids).to.include(pm.collectionVariables.get(\"productId\").toLowerCase());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List products of unknown store -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productsUrl}}/api/stores/00000000-0000-0000-0000-000000000000/products",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores",
+                "00000000-0000-0000-0000-000000000000",
+                "products"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productsUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const product = pm.response.json();",
+                  "pm.test(\"same product\", () => {",
+                  "    pm.expect(product.id).to.eql(pm.collectionVariables.get(\"productId\"));",
+                  "    pm.expect(product.price).to.eql(49.9);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productsUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"SKU-{{runId}}\",\n  \"name\": \"Chimarrao cuia\",\n  \"description\": \"Hand made, 300ml\",\n  \"price\": 54.9,\n  \"quantity\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"price and quantity were updated\", () => {",
+                  "    const product = pm.response.json();",
+                  "    pm.expect(product.price).to.eql(54.9);",
+                  "    pm.expect(product.quantity).to.eql(8);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update product code -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productsUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"SKU-CHANGED\",\n  \"name\": \"Chimarrao cuia\",\n  \"price\": 54.9,\n  \"quantity\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "ProductCode is immutable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Q2 - products. Auth: x-functions-key header (Azure Functions host key)."
+    },
+    {
+      "name": "3. Cross-service (production only)",
+      "item": [
+        {
+          "name": "Change currency of a store with products -> 409",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores/{{storeId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores",
+                "{{storeId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Porto Alegre - Centro\",\n  \"countryCode\": \"BR\",\n  \"currencyCode\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-Api-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "The Stores API doesn't know about products. The composite FK Products(StoreId, CurrencyCode) -> Stores(Id, CurrencyCode) rejects the update and the API maps it to 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Shows the rule between the two services working through the database."
+    },
+    {
+      "name": "4. Cleanup - products",
+      "item": [
+        {
+          "name": "Delete product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{productsUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-functions-key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{functionsKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted product -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productsUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{productsUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-functions-key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{functionsKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Cleanup - stores (production only)",
+      "item": [
+        {
+          "name": "Delete company with active store -> 409",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-Api-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete store",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores/{{storeId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores",
+                "{{storeId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-Api-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted store -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}/stores/{{storeId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}",
+                "stores",
+                "{{storeId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-Api-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"returns a problem details body\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json()).to.have.property(\"title\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete company",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{storesUrl}}/api/companies/{{companyId}}",
+              "host": [
+                "{{storesUrl}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                "{{companyId}}"
+              ]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-Api-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "runId",
+      "value": ""
+    },
+    {
+      "key": "companyId",
+      "value": ""
+    },
+    {
+      "key": "storeId",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    }
+  ]
+}
