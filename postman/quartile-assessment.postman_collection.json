@@ -46,7 +46,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Anonymous. Also checks the database connection (it can be slow on the first call because the serverless DB may be paused)."
+            "description": "Anonymous liveness check. It doesn't touch the database (/health/ready does, with the API key)."
           },
           "event": [
             {

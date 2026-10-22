@@ -53,8 +53,8 @@ stores/                  Q1 - Stores.slnx
   tests/                     unit (domain/application) and integration (WebApplicationFactory + LocalDB)
 products/                Q2 - Products.slnx
   database/                  001 table, 002 scalar function (JSON), 003 insert procedure
-  src/Products.Functions     Functions/, Application/, Domain/, Persistence/
-  tests/Products.UnitTests
+  src/Products.Functions     Endpoints/, Application/, Domain/, Persistence/
+  tests/                     unit (domain/application) and integration (real scripts + LocalDB)
 postman/                 collection + production/staging environments
 .github/workflows/       stores-api.yml, products-functions.yml, products-swap.yml
 ```
@@ -69,7 +69,8 @@ postman/                 collection + production/staging environments
 | GET / DELETE | `/api/companies/{companyId}` |
 | GET / POST | `/api/companies/{companyId}/stores` |
 | GET / PUT / DELETE | `/api/companies/{companyId}/stores/{storeId}` |
-| GET | `/health` (anonymous) |
+| GET | `/health` (anonymous liveness, doesn't touch the database) |
+| GET | `/health/ready` (checks the database, needs the API key) |
 
 **Products Functions**
 
@@ -103,6 +104,12 @@ dotnet run --project stores/src/Stores.Api
 dotnet test products/Products.slnx
 cd products/src/Products.Functions && func start
 ```
+
+**Integration tests need SQL Server LocalDB (Windows only).**
+- Both services have them: the Stores API runs its migrations, and Products runs the real scripts from `database/` (001-003) over minimal `Companies`/`Stores` tables. Each run creates a throwaway database (`Quartile_Tests`, `Products_Tests`) and never touches Azure.
+- LocalDB comes with Visual Studio (data storage workload) or the SQL Server Express installer ("LocalDB" option). Check it with `sqllocaldb info`; `MSSQLLocalDB` must be listed.
+- On macOS/Linux, LocalDB doesn't exist, so the integration tests can't run there as they are. Unit tests run anywhere (`dotnet test` on the `*.UnitTests` projects).
+- They always run in CI: both build jobs use `windows-latest`, which ships LocalDB, and a failing test blocks the deploy.
 
 ## Design decisions
 
@@ -139,7 +146,7 @@ cd products/src/Products.Functions && func start
 
 - Azure API Management in front of both services (single gateway, subscription keys, rate limiting).
 - `PATCH` with JSON Merge Patch for partial updates.
-- Integration tests against SQL Server in a container (Testcontainers) instead of LocalDB.
+- Integration tests against SQL Server in a container (Testcontainers) instead of LocalDB: same engine as Azure SQL, runs on any OS with Docker, and CI could go back to Linux runners.
 - CI on pull requests, and a staging slot for the Stores API.
 - **Separate databases per service.** Today the composite FK is the contract between the services. With one database each:
   - The Stores API would publish `StoreCreated` / `StoreUpdated` / `StoreDeactivated` to an Azure Service Bus topic, using a transactional **outbox** so an event is never lost if the app fails right after saving.
