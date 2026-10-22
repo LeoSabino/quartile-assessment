@@ -17,6 +17,23 @@ internal class ProductRepository : IProductRepository
 
     public async Task<Result<Guid>> AddAsync(Product product, CancellationToken cancellationToken)
     {
+        var strategy = _db.Database.CreateExecutionStrategy();
+
+        try
+        {
+            var id = await strategy.ExecuteAsync(ct => InsertAsync(product, ct), cancellationToken);
+            return id is Guid productId
+                ? Result<Guid>.Success(productId)
+                : Result<Guid>.Failure(ProductErrors.StoreNotFound);
+        }
+        catch (SqlException ex) when (SqlErrors.ToError(ex) is { } error)
+        {
+            return Result<Guid>.Failure(error);
+        }
+    }
+
+    private async Task<object?> InsertAsync(Product product, CancellationToken cancellationToken)
+    {
         await using var command = _db.Database.GetDbConnection().CreateCommand();
         command.CommandText = "dbo.InsertProduct";
         command.CommandType = CommandType.StoredProcedure;
@@ -33,14 +50,7 @@ internal class ProductRepository : IProductRepository
         await _db.Database.OpenConnectionAsync(cancellationToken);
         try
         {
-            var id = await command.ExecuteScalarAsync(cancellationToken);
-            return id is Guid productId
-                ? Result<Guid>.Success(productId)
-                : Result<Guid>.Failure(ProductErrors.StoreNotFound);
-        }
-        catch (SqlException ex) when (SqlErrors.ToError(ex) is { } error)
-        {
-            return Result<Guid>.Failure(error);
+            return await command.ExecuteScalarAsync(cancellationToken);
         }
         finally
         {
