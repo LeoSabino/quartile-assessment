@@ -6,6 +6,7 @@ public class Product
     public const int NameMaxLength = 200;
     public const int DescriptionMaxLength = 1000;
     public const int PriceDecimalPlaces = 2;
+    public const decimal MaxPrice = 9_999_999_999_999_999.99m; // DECIMAL(18,2)
 
     public Guid Id { get; private set; }
     public Guid StoreId { get; private set; }
@@ -99,7 +100,7 @@ public class Product
         if (description?.Length > DescriptionMaxLength)
             return ProductErrors.DescriptionTooLong;
 
-        if (price < 0 || decimal.Round(price, PriceDecimalPlaces) != price)
+        if (price < 0 || price > MaxPrice || decimal.Round(price, PriceDecimalPlaces) != price)
             return ProductErrors.InvalidPrice;
 
         if (quantity < 0)

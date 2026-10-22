@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Stores.Api.Authentication;
 using Stores.Application;
 using Stores.Infrastructure;
@@ -25,7 +26,7 @@ builder.Services
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
-builder.Services.AddHealthChecks().AddDbContextCheck<StoresDbContext>();
+builder.Services.AddHealthChecks().AddDbContextCheck<StoresDbContext>(tags: ["db"]);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer<ApiKeySecurityTransformer>());
@@ -42,6 +43,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health").AllowAnonymous();
+// Anonymous liveness doesn't touch the database, so it can't keep the serverless database awake.
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("db") });
 
 app.Run();

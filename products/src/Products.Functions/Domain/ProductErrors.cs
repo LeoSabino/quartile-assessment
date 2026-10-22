@@ -39,7 +39,7 @@ public static class ProductErrors
         new(ErrorType.Validation, "Product.PriceRequired", "Price is required.");
 
     public static readonly Error InvalidPrice =
-        new(ErrorType.Validation, "Product.InvalidPrice", $"Price must be zero or positive, with at most {Product.PriceDecimalPlaces} decimal places.");
+        new(ErrorType.Validation, "Product.InvalidPrice", FormattableString.Invariant($"Price must be between 0 and {Product.MaxPrice}, with at most {Product.PriceDecimalPlaces} decimal places."));
 
     public static readonly Error InvalidQuantity =
         new(ErrorType.Validation, "Product.InvalidQuantity", "Quantity must be zero or positive.");
