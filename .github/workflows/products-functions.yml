@@ -1,0 +1,63 @@
+name: Products Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'products/**'
+      - '.github/workflows/products-functions.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: products
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Build
+        run: dotnet build Products.slnx -c Release
+
+      - name: Unit tests
+        run: dotnet test tests/Products.UnitTests -c Release --no-build
+
+      - name: Publish
+        run: dotnet publish src/Products.Functions/Products.Functions.csproj -c Release -o ${{ runner.temp }}/products-functions
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: products-functions
+          path: ${{ runner.temp }}/products-functions
+          include-hidden-files: true
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: products-functions
+          path: products-functions
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: func-quartile-products-leo
+          slot-name: staging
+          package: products-functions

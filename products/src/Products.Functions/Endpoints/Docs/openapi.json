@@ -1,0 +1,268 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Products API",
+    "version": "v1",
+    "description": "Serverless CRUD for products of a store (Azure Functions, .NET 10 isolated worker).\n\n- Every operation needs a function key in the `x-functions-key` header.\n- A product belongs to one store. Its currency is always the store's currency, copied by the database.\n- `productCode` is unique among the active products of a store (case-insensitive) and can't be changed.\n- `DELETE` is a soft delete. A product is only visible while the product, its store and its company are active.\n- Errors use `application/problem+json` with a `code` extension, e.g. `Product.NotFound`."
+  },
+  "servers": [
+    { "url": "/api" }
+  ],
+  "security": [
+    { "functionKey": [] }
+  ],
+  "tags": [
+    { "name": "Products", "description": "Products of a store." }
+  ],
+  "paths": {
+    "/products": {
+      "post": {
+        "tags": [ "Products" ],
+        "operationId": "CreateProduct",
+        "summary": "Create a product",
+        "description": "Inserts through the `dbo.InsertProduct` stored procedure. The currency is copied from the store.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateProductRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "headers": {
+              "Location": {
+                "description": "URL of the new product.",
+                "schema": { "type": "string", "example": "/api/products/7f02d159-3bce-f111-9db0-c84bd6b40ea6" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/StoreNotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/products/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/ProductId" }
+      ],
+      "get": {
+        "tags": [ "Products" ],
+        "operationId": "GetProduct",
+        "summary": "Get a product",
+        "responses": {
+          "200": {
+            "description": "The product.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" }
+        }
+      },
+      "put": {
+        "tags": [ "Products" ],
+        "operationId": "UpdateProduct",
+        "summary": "Replace a product",
+        "description": "Full replacement: fields left out get their default (`quantity` becomes 0). `productCode` must be the current code (case-insensitive).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateProductRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated product.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" }
+        }
+      },
+      "delete": {
+        "tags": [ "Products" ],
+        "operationId": "DeleteProduct",
+        "summary": "Delete a product",
+        "description": "Soft delete. The product code can be used again in the same store.",
+        "responses": {
+          "204": { "description": "Deleted." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" }
+        }
+      }
+    },
+    "/stores/{storeId}/products": {
+      "parameters": [
+        {
+          "name": "storeId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "uuid" }
+        }
+      ],
+      "get": {
+        "tags": [ "Products" ],
+        "operationId": "ListStoreProducts",
+        "summary": "List the products of a store",
+        "description": "Returns the JSON built by the `dbo.GetProductsJson` scalar function, unchanged.",
+        "responses": {
+          "200": {
+            "description": "The store and its active products.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StoreProducts" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/StoreNotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "functionKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-functions-key",
+        "description": "Azure Functions key. Not checked when running locally with `func start`."
+      }
+    },
+    "parameters": {
+      "ProductId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      }
+    },
+    "schemas": {
+      "CreateProductRequest": {
+        "type": "object",
+        "required": [ "storeId", "productCode", "name", "price" ],
+        "properties": {
+          "storeId": { "type": "string", "format": "uuid" },
+          "productCode": { "type": "string", "maxLength": 50, "example": "ABC-1" },
+          "name": { "type": "string", "maxLength": 200, "example": "Coffee" },
+          "description": { "type": "string", "maxLength": 1000, "nullable": true, "example": "Arabica 500g" },
+          "price": { "type": "number", "minimum": 0, "multipleOf": 0.01, "example": 10.5 },
+          "quantity": { "type": "integer", "format": "int32", "minimum": 0, "default": 0, "example": 3 }
+        }
+      },
+      "UpdateProductRequest": {
+        "type": "object",
+        "required": [ "productCode", "name", "price" ],
+        "properties": {
+          "productCode": { "type": "string", "maxLength": 50, "example": "ABC-1" },
+          "name": { "type": "string", "maxLength": 200, "example": "Espresso" },
+          "description": { "type": "string", "maxLength": 1000, "nullable": true, "example": "Dark roast" },
+          "price": { "type": "number", "minimum": 0, "multipleOf": 0.01, "example": 12.9 },
+          "quantity": { "type": "integer", "format": "int32", "minimum": 0, "default": 0, "example": 7 }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "storeId": { "type": "string", "format": "uuid" },
+          "productCode": { "type": "string", "example": "ABC-1" },
+          "name": { "type": "string", "example": "Coffee" },
+          "description": { "type": "string", "nullable": true, "example": "Arabica 500g" },
+          "price": { "type": "number", "example": 10.5 },
+          "currencyCode": { "type": "string", "description": "ISO 4217, from the store.", "example": "BRL" },
+          "quantity": { "type": "integer", "format": "int32", "example": 3 }
+        }
+      },
+      "StoreProducts": {
+        "type": "object",
+        "properties": {
+          "storeId": { "type": "string", "format": "uuid" },
+          "currencyCode": { "type": "string", "example": "BRL" },
+          "products": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StoreProduct" }
+          }
+        }
+      },
+      "StoreProduct": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "productCode": { "type": "string", "example": "ABC-1" },
+          "name": { "type": "string", "example": "Coffee" },
+          "description": { "type": "string", "nullable": true },
+          "price": { "type": "number", "example": 10.5 },
+          "quantity": { "type": "integer", "format": "int32", "example": 3 },
+          "createdAt": { "type": "string", "format": "date-time", "description": "UTC." },
+          "updatedAt": { "type": "string", "format": "date-time", "nullable": true, "description": "UTC." }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "example": "Product not found." },
+          "status": { "type": "integer", "example": 404 },
+          "code": { "type": "string", "example": "Product.NotFound" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid body or data, e.g. `Request.InvalidBody`, `Product.PriceRequired`, `Product.InvalidPrice`, `Product.ProductCodeCannotChange`.",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid function key (empty body)."
+      },
+      "ProductNotFound": {
+        "description": "`Product.NotFound`: unknown or deleted product, or its store or company is inactive.",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      },
+      "StoreNotFound": {
+        "description": "`Product.StoreNotFound`: unknown store, or the store or its company is inactive.",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "`Product.ProductCodeAlreadyInUse`: the store already has an active product with this code.",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      }
+    }
+  }
+}
